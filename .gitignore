@@ -1,0 +1,18 @@
+# Generated embeddings
+data/embeddings/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Virtual environment
+.venv/
+
+# Secrets
+.env
+
+# VS Code
+.vscode/
+
+# Large videos
+data/raw/videos/
