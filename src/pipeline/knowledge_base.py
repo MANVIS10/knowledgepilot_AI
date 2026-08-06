@@ -14,7 +14,6 @@ class KnowledgeBase:
 
         self.generator = Generator()
         self.memory = ConversationMemory()
-
     ############################################################
     # NORMAL METHOD (FastAPI / Swagger)
     ############################################################
@@ -115,7 +114,7 @@ class KnowledgeBase:
     # STREAMING METHOD (Gradio Only)
     ############################################################
 
-def stream_answer(
+    def stream_answer(
         self,
         question: str,
         top_k: int = 5
@@ -160,4 +159,4 @@ def stream_answer(
             final_answer = partial
             yield partial
 
-        self.memory.add_assistant_message(final_answer)
+        self.memory.add_assistant_message(final_answer)
