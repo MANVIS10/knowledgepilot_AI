@@ -15,5 +15,13 @@ def get_connection():
         sslmode=os.getenv("DB_SSLMODE", "require"),
     )
 
+    try:
+        with conn.cursor() as cur:
+            cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+        conn.commit()
+    except Exception:
+        conn.rollback()
+
     register_vector(conn)
-    return conn
+    return conn
+
