@@ -1,14 +1,24 @@
+import os
 import gradio as gr
 
 from src.pipeline.knowledge_base import KnowledgeBase
 
-kb = KnowledgeBase()
+# Don't create the KnowledgeBase during startup
+kb = None
 
 
 def chat(message, history):
     """
     Streams the assistant response.
     """
+
+    global kb
+
+    # Initialize only on the first request
+    if kb is None:
+        print("Initializing KnowledgeBase...")
+        kb = KnowledgeBase()
+        print("KnowledgeBase initialized.")
 
     for partial in kb.stream_answer(message):
         yield partial
@@ -33,9 +43,6 @@ Examples:
     ]
 )
 
-
-
-import os
 
 demo.launch(
     server_name="0.0.0.0",
