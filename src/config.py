@@ -1,4 +1,4 @@
-MODEL_NAME = "gpt-5-nano"
+MODEL_NAME = "gpt-4o-mini"
 
 TOP_K = 5
 

@@ -2,6 +2,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 
 from src.generation.prompt_builder import build_prompt
+from src.config import MODEL_NAME
 
 load_dotenv()
 
@@ -23,12 +24,12 @@ class Generator:
             history
         )
 
-        response = client.responses.create(
-            model="gpt-5-nano",
-            input=prompt
+        response = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[{"role": "user", "content": prompt}]
         )
 
-        return response.output_text
+        return response.choices[0].message.content
 
 
     def stream_generate(
@@ -44,16 +45,15 @@ class Generator:
             history
         )
 
-        stream = client.responses.create(
-            model="gpt-5-nano",
-            input=prompt,
+        stream = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[{"role": "user", "content": prompt}],
             stream=True
         )
 
         partial = ""
 
-        for event in stream:
-
-            if event.type == "response.output_text.delta":
-                partial += event.delta
+        for chunk in stream:
+            if chunk.choices and chunk.choices[0].delta.content:
+                partial += chunk.choices[0].delta.content
                 yield partial

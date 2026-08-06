@@ -1,4 +1,5 @@
 from openai import OpenAI
+from src.config import MODEL_NAME
 
 client = OpenAI()
 
@@ -41,12 +42,12 @@ or
 UNSUPPORTED
 """
 
-    response = client.responses.create(
-        model="gpt-5-nano",
-        input=prompt
+    response = client.chat.completions.create(
+        model=MODEL_NAME,
+        messages=[{"role": "user", "content": prompt}]
     )
 
-    decision = response.output_text.strip()
+    decision = response.choices[0].message.content.strip()
 
     if decision == "SUPPORTED":
         return True, answer
