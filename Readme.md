@@ -1,5 +1,7 @@
 # knowledgepilot_AI
-# 🧠 KnowledgePilot AI
+# 🧠 KnowledgePilot AI    
+
+Live Demo URL:https://knowledgepilot-ai.onrender.com
 
 KnowledgePilot AI is a Retrieval-Augmented Generation (RAG) chatbot that answers questions from course transcripts using semantic search and OpenAI. Instead of relying only on the language model's knowledge, it retrieves relevant information from a custom knowledge base and generates context-aware responses.
 
