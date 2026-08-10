@@ -10,8 +10,9 @@ def validate_retrieval(question, retrieved_chunks):
         )
 
     best_distance = retrieved_chunks[0]["distance"]
+    best_similarity = 1 - best_distance
 
-    if best_distance > SIMILARITY_THRESHOLD:
+    if best_similarity < SIMILARITY_THRESHOLD:
         return (
             False,
             "I couldn't find relevant information in the lecture material."
