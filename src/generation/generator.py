@@ -14,9 +14,12 @@ class Generator:
     def generate(
         self,
         question: str,
-        chunks: list[str],
-        history: list[dict]
+        chunks: list,
+        history: list[dict] = None
     ) -> str:
+
+        if history is None:
+            history = []
 
         prompt = build_prompt(
             question,
@@ -35,15 +38,19 @@ class Generator:
     def stream_generate(
         self,
         question: str,
-        chunks: list[str],
-        history: list[dict]
+        chunks: list,
+        history: list[dict] = None
     ):
+
+        if history is None:
+            history = []
 
         prompt = build_prompt(
             question,
             chunks,
             history
         )
+
 
         stream = client.chat.completions.create(
             model=MODEL_NAME,

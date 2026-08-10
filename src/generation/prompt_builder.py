@@ -1,7 +1,7 @@
 def build_prompt(
     question: str,
-    chunks: list[str],
-    history: list[dict]
+    chunks: list,
+    history: list[dict] = None
 ) -> str:
     """
     Build a prompt for the LLM using retrieved chunks
@@ -9,12 +9,14 @@ def build_prompt(
 
     Args:
         question (str): User's question.
-        chunks (list[str]): Retrieved chunks.
+        chunks (list): Retrieved chunks (can be list of dicts or list of strings).
         history (list[dict]): Conversation history.
 
     Returns:
         str: Prompt for the LLM.
     """
+    if history is None:
+        history = []
 
     # -----------------------------
     # Build conversation history
@@ -29,7 +31,24 @@ def build_prompt(
     # -----------------------------
     # Build context
     # -----------------------------
-    context = "\n\n".join(chunks)
+    formatted_chunks = []
+    for i, chunk in enumerate(chunks, start=1):
+        if isinstance(chunk, dict):
+            lecture_name = chunk.get("lecture", "Unknown")
+            import re
+            match = re.search(r'\d+', lecture_name)
+            if match:
+                lecture_num = int(match.group())
+                formatted_source = f"Lecture {lecture_num}, Section {chunk.get('chunk_id', i)}"
+            else:
+                formatted_source = f"{lecture_name.capitalize()}, Section {chunk.get('chunk_id', i)}"
+            
+            chunk_text = chunk.get("text", "")
+            formatted_chunks.append(f"[{i}] Source: {formatted_source}\nContent: {chunk_text}")
+        else:
+            formatted_chunks.append(f"[{i}] Content: {chunk}")
+
+    context = "\n\n".join(formatted_chunks)
 
     # -----------------------------
     # Prompt
@@ -39,7 +58,7 @@ You are a Stanford CS229 Teaching Assistant.
 
 Use the conversation history to understand follow-up questions.
 
-Answer ONLY using the context provided below.
+Answer the question using ONLY the retrieved context provided below. For every fact, claim, or statement you make in your answer, you MUST cite the source by appending its corresponding chunk number in square brackets, e.g. [1] or [2]. Place these citations at the end of the sentence or clause containing the information. If multiple sources support a statement, include multiple citations like [1][2]. Keep the answer clean and professional.
 
 If the answer is not present in the context, reply exactly:
 
@@ -77,8 +96,8 @@ if __name__ == "__main__":
     ]
 
     chunks = [
-        "Supervised learning learns from labeled data.",
-        "Unsupervised learning discovers hidden patterns in unlabeled data."
+        {"lecture": "lecture01", "chunk_id": 5, "text": "Supervised learning learns from labeled data."},
+        {"lecture": "lecture02", "chunk_id": 12, "text": "Unsupervised learning discovers hidden patterns in unlabeled data."}
     ]
 
     question = "What is supervised learning?"
@@ -89,4 +108,4 @@ if __name__ == "__main__":
         history
     )
 
-    print(prompt)
+    print(prompt)
