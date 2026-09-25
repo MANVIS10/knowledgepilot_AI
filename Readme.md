@@ -1,313 +1,243 @@
-# knowledgepilot_AI
-# 🧠 KnowledgePilot AI    
+# 🧠 KnowledgePilot AI
 
-Live Demo URL:https://knowledgepilot-ai.onrender.com
+KnowledgePilot AI is a Retrieval-Augmented Generation (RAG) chatbot that answers questions about **Stanford CS229 (Machine Learning)** using the transcripts of all 20 lectures. It retrieves the most relevant lecture passages with semantic search, has GPT-4o mini answer **only from those passages with numbered citations**, and checks the answer before returning it.
 
-KnowledgePilot AI is a Retrieval-Augmented Generation (RAG) chatbot that answers questions from course transcripts using semantic search and OpenAI. Instead of relying only on the language model's knowledge, it retrieves relevant information from a custom knowledge base and generates context-aware responses.
+I built it from scratch to understand the whole RAG pipeline, and then **measured it with DeepEval** — component-level and end-to-end — and fixed what the evals found. The results are below.
 
-The project was built from scratch to understand the complete RAG pipeline, including preprocessing, embeddings, vector search, prompt engineering, guardrails, memory, API development, and Docker deployment.
-
----
-
-## 🚀 Features
-
-- Semantic search using Sentence Transformers
-- Vector database with PostgreSQL + PGVector
-- Retrieval-Augmented Generation (RAG)
-- OpenAI GPT-powered answer generation
-- Streaming responses
-- Conversation memory
-- Input validation guardrails
-- Retrieval validation guardrails
-- Output validation guardrails
-- REST API using FastAPI
-- Dockerized application
-- Swagger UI for API testing
+> **Status:** the previous hosted demo is offline (free hosting expired). The app runs locally or in Docker (see [Running it](#running-it)).
 
 ---
 
-# System Architecture
+## Features
+
+- Semantic search: `BAAI/bge-small-en-v1.5` embeddings (run with FastEmbed / ONNX, no PyTorch) + PostgreSQL **pgvector**
+- Answers grounded in retrieved lecture chunks, with `[1][2]` citations and source cards
+- Streaming Gradio chat UI with a **Retrieval-Debug mode** (raw chunks, distances, guardrail status)
+- FastAPI `POST /ask` endpoint with Swagger docs
+- **Per-user conversation memory** (each browser session / API `session_id` has its own history)
+- Three guardrails: input (prompt-injection filter), retrieval (similarity threshold), output (LLM check that the answer is supported by the context)
+- Docker image; database hosted on Neon
+- DeepEval test suite for components and the full pipeline
+
+---
+
+## Architecture
 
 ```
-                User Question
-                      │
-                      ▼
-                 FastAPI API
-                      │
-                      ▼
-            Input Guardrails
-                      │
-                      ▼
-        Sentence Transformer
-             Embedding Model
-                      │
-                      ▼
-      PostgreSQL + PGVector Search
-                      │
-          Top Relevant Chunks
-                      │
-                      ▼
-           Prompt Construction
-                      │
-                      ▼
-              OpenAI GPT Model
-                      │
-                      ▼
-          Output Guardrails
-                      │
-                      ▼
-             Final Response
+                 User question
+                       │
+        ┌──────────────┴──────────────┐
+        ▼                             ▼
+   Gradio UI (chat)            FastAPI  POST /ask
+        └──────────────┬──────────────┘
+                       ▼
+              KnowledgeBase pipeline
+                       │
+     1. Input guard ── normalizes text, blocks injection phrasing
+                       │
+     2. Embed question (bge-small-en-v1.5, FastEmbed/ONNX, 384-dim)
+                       │
+     3. pgvector cosine search on Neon ── top-5 chunks
+                       │
+     4. Retrieval guard ── refuse if best similarity < threshold
+                       │
+     5. Prompt = persona + per-session history + numbered chunks
+                       │
+     6. GPT-4o mini ── answer with [n] citations (streamed in the UI)
+                       │
+     7. Output guard ── is the answer supported by the chunks?
+                       │
+                answer + sources
 ```
 
----
-
-# Tech Stack
+## Tech stack
 
 | Category | Technology |
 |----------|------------|
-| Language | Python |
-| API Framework | FastAPI |
-| LLM | OpenAI GPT-5 Nano |
-| Embeddings | Sentence Transformers |
-| Vector Database | PostgreSQL + PGVector |
-| Database Driver | psycopg2 |
-| Containerization | Docker |
-| API Testing | Swagger UI |
-| Version Control | Git & GitHub |
+| Language | Python 3.11 |
+| UI / API | Gradio, FastAPI |
+| LLM | OpenAI GPT-4o mini |
+| Embeddings | `BAAI/bge-small-en-v1.5` via FastEmbed (ONNX Runtime) |
+| Vector database | PostgreSQL + pgvector (Neon) |
+| Evaluation | DeepEval, pytest (DeepTeam installed for the security level) |
+| Packaging | Docker |
+
+## Data pipeline (offline)
+
+1. **Parse** – `src/preprocessing/html_parser.py` extracts text from the HTML transcripts.
+2. **Chunk** – `chunker.py` splits each lecture into 300-word windows with 50-word overlap → **764 chunks** across 20 lectures.
+3. **Embed** – `src/embeddings/embedder.py` creates 384-dim vectors.
+4. **Store** – `src/ingestion/store_embeddings.py` loads them into a `documents` table (`VECTOR(384)`). Re-running it replaces a lecture's rows, so it never creates duplicates.
 
 ---
 
-# Project Structure
+## Evaluation results
 
-```
-KnowledgePilot_AI/
+Every number below comes from the suites in [`evals/`](evals). They use small hand-built sets, so read them as a **baseline, not a benchmark**: 22 answerable questions, 10 unanswerable, 4 follow-ups, 12 attack prompts, 16 legitimate prompts. Relevance labels come from keyword matches in the transcripts. Answer quality is judged by `gpt-4o-mini` through DeepEval, and an LLM judge can be lenient.
 
-├── api/
-│   └── main.py
-│
-├── src/
-│   ├── embeddings/
-│   ├── preprocessing/
-│   ├── retrieval/
-│   ├── generation/
-│   ├── pipeline/
-│   ├── guardrails/
-│   ├── memory/
-│   ├── ingestion/
-│   ├── logging/
-│   └── utils/
-│
-├── data/
-│   ├── raw/
-│   └── processed/
-│
-├── tests/
-│
-├── Dockerfile
-├── requirements.txt
-└── README.md
-```
+### Component level
 
----
+| Component | Metric | Result |
+|-----------|--------|--------|
+| Retrieval (22 questions, top-5) | Hit rate | **0.95** |
+| | MRR | **0.95** |
+| | Precision@5 | **0.92** |
+| Retrieval, follow-up questions (4) | MRR / Precision@5 | **0.38 / 0.35** ← known weakness, see below |
+| Retrieval guard (threshold 0.60) | Answerable questions wrongly refused | **0 of 22** (lowest answerable score 0.666) |
+| | Unanswerable questions let through | **7 of 10** (see below) |
+| Input guard | Attack phrasings blocked | **12 of 12** (was 6 of 12 with the original exact-phrase list) |
+| | Legitimate questions blocked | **0 of 16** |
+| Embedding runner | Vector agreement with the old PyTorch runner | cosine ≥ 0.999998, identical top-5 order |
+| | Memory, one model + one query | **217 MB** vs 550 MB before |
 
-# How It Works
+### Application level (whole pipeline, DeepEval)
 
-### 1. Data Collection
+| Check | Result |
+|-------|--------|
+| Answerable questions (8): faithfulness ≥ 0.7, answer relevancy ≥ 0.7, correctness vs reference ≥ 0.6 | **8 / 8 passed** (3 failed in the first full run, which also logged OpenAI 503 and network errors, and passed when re-run) |
+| Citations: every `[n]` points at a real retrieved source | **8 / 8** |
+| Unanswerable questions (10, off-topic and topics the lectures don't cover) | **10 / 10 refused** |
+| Session isolation: one user's history never reaches another | **passed** |
 
-HTML lecture transcripts are collected and stored.
+### What the evals found, and what was fixed
 
-### 2. Parsing
+| Problem found | Fix |
+|---------------|-----|
+| One global memory shared by every user | Memory is now per session |
+| The current question appeared twice in the prompt, and blocked questions stayed in memory with no answer | History is read before the question is added; a turn is saved only when an answer is produced |
+| Output guard rejected good answers unless the judge replied with exactly `SUPPORTED` | Tolerant verdict parsing, `temperature=0`, and the exact "not enough information" refusal skips the extra LLM call |
+| Streamed answers vanished after the output guard failed | The answer stays and a warning is appended |
+| Database host and password hard-coded as defaults | All connection settings come from environment variables |
+| Input guard missed half of the attack phrasings | Text normalization + regex patterns (12/12 blocked) |
+| Re-running ingestion duplicated rows | Ingestion replaces a lecture's rows |
+| PyTorch made the image large and used ~550 MB RAM | Same model on ONNX: 217 MB |
 
-HTML files are parsed to extract clean text.
+### Known limitations (found by the evals, not yet fixed)
 
-### 3. Chunking
-
-Each lecture is divided into manageable text chunks.
-
-### 4. Embedding Generation
-
-Each chunk is converted into a dense vector using Sentence Transformers.
-
-### 5. Vector Storage
-
-Embeddings are stored inside PostgreSQL using the PGVector extension.
-
-### 6. Semantic Retrieval
-
-For every user question:
-
-- Generate embedding
-- Search nearest vectors
-- Retrieve Top-K relevant chunks
-
-### 7. Prompt Building
-
-Retrieved context and conversation history are combined into a prompt.
-
-### 8. Answer Generation
-
-OpenAI GPT generates a grounded response based on retrieved information.
-
-### 9. Guardrails
-
-The response passes through:
-
-- Input validation
-- Retrieval validation
-- Output validation
-
-before being returned.
+- **Follow-up questions retrieve poorly.** "Why does *it* need a learning rate?" is searched without the conversation, so retrieval quality drops (MRR 0.38 vs 0.95). The fix is to rewrite follow-ups into standalone questions before searching.
+- **A similarity threshold can't separate "not covered" from "covered".** Scores for topics the lectures skip (decision trees, BERT, backprop, …) reach 0.75, overlapping answerable questions (from 0.67). The language model's refusal is the real backstop; the retrieval guard only reliably stops clearly off-topic questions.
+- **Retrieval is sensitive to phrasing.** "Explain the naive Bayes classifier" missed the main lecture, while a reworded question found it.
+- **The input guard is a heuristic filter, not a complete defense.** Security red-teaming (DeepTeam) is the next planned step.
+- Small eval sets and an LLM judge, as noted above.
 
 ---
 
-# API
+## API
 
-## POST `/ask`
-
-Example Request
+`POST /ask`
 
 ```json
 {
-    "question":"What is cosine similarity?"
+  "question": "What is gradient descent?",
+  "session_id": "any-string-you-choose"
 }
 ```
 
-Example Response
+`session_id` is optional. Requests with the same id share a conversation; without one, the call is stateless.
+
+Response (abridged):
 
 ```json
 {
-    "answer":"Cosine similarity measures the angle between two vectors...",
-    "sources":[
-        {
-            "lecture":"Lecture 05",
-            "chunk_id":17
-        }
-    ]
+  "answer": "Gradient descent is an iterative optimization algorithm ... [1][2]",
+  "sources": [
+    {
+      "lecture": "Lecture 02",
+      "chunk_id": 17,
+      "similarity_score": 0.76,
+      "text": "..."
+    }
+  ],
+  "retrieved_chunks": ["..."],
+  "passed_chunks": ["..."],
+  "success": true
 }
 ```
 
+`success` is `false` when a guardrail refused the question or rejected the answer.
+
 ---
 
-# Running Locally
+## Running it
 
-Clone repository
+**1. Install**
 
 ```bash
 git clone https://github.com/MANVIS10/knowledgepilot_AI.git
-```
-
-Install dependencies
-
-```bash
+cd knowledgepilot_AI
 pip install -r requirements.txt
 ```
 
-Start PostgreSQL
+**2. Configure** – copy `.env.example` to `.env` and fill in your OpenAI key and Postgres details (any Postgres with the pgvector extension, e.g. a Neon project; use `DB_SSLMODE=require` for hosted databases). Missing settings raise a clear error.
+
+**3. Load the data (once)**
 
 ```bash
-docker start knowledgepilot-db
+python -m src.embeddings.embedder
+python -m src.ingestion.store_embeddings
 ```
 
-Run FastAPI
+**4. Start it**
 
 ```bash
-uvicorn api.main:app --reload
+python -m ui.app                  # Gradio UI on http://localhost:7860
+uvicorn api.main:app --reload     # API + Swagger on http://localhost:8000/docs
 ```
 
-Open Swagger
-
-```
-http://localhost:8000/docs
-```
-
----
-
-# Docker
-
-Build image
+**Docker** (runs the Gradio UI):
 
 ```bash
 docker build -t knowledgepilot .
+docker run --env-file .env -p 7860:7860 knowledgepilot
 ```
 
-Run container
+## Running the evals
 
 ```bash
-docker run --env-file .env -p 8000:8000 knowledgepilot
+pip install -r requirements-dev.txt
+pytest evals/component      # retrieval, retrieval guard, input guard (no LLM cost)
+pytest evals/application    # whole pipeline, calls OpenAI (roughly a few cents to a dollar per run)
 ```
 
+They need the database loaded and `OPENAI_API_KEY` set. Reports are written to `evals/reports/`.
+
 ---
 
-# Testing
+## Project structure
 
-The project includes tests for:
-
-- Retrieval pipeline
-- Knowledge Base
-- Generator
-
-Run tests
-
-```bash
-pytest
+```
+├── api/                FastAPI app
+├── ui/                 Gradio app
+├── src/
+│   ├── preprocessing/  HTML parsing, chunking
+│   ├── embeddings/     chunk embedding
+│   ├── ingestion/      load vectors into Postgres
+│   ├── retrieval/      pgvector search
+│   ├── generation/     prompt builder, OpenAI generator
+│   ├── guardrails/     input, retrieval, output guards
+│   ├── memory/         per-session conversation memory
+│   ├── pipeline/       KnowledgeBase (ties it all together)
+│   └── utils/          database connection
+├── evals/              DeepEval component + application suites, datasets
+├── docs/plans/         fix plans driven by the eval results
+├── data/               raw transcripts, processed chunks
+├── Dockerfile
+├── requirements.txt          runtime
+└── requirements-dev.txt      evals (DeepEval, DeepTeam)
 ```
 
----
+## Roadmap
 
-# Current Capabilities
+- Rewrite follow-up questions before retrieval
+- Move the similarity threshold to 0.65 and keep all settings in `src/config.py`
+- Security evals with DeepTeam (prompt leakage, injection, jailbreaks)
+- Hybrid search (BM25 + vectors) and cross-encoder re-ranking
+- CI that runs the evals, and a hosted demo
 
-✔ Semantic Retrieval
+## What I learned
 
-✔ Vector Search
-
-✔ Context-Aware Responses
-
-✔ Streaming Generation
-
-✔ Conversation Memory
-
-✔ Guardrails
-
-✔ FastAPI Backend
-
-✔ Dockerized Deployment
-
-✔ Swagger Documentation
+RAG end to end (chunking, embeddings, vector search, prompt design, guardrails), evaluating an LLM app at component and application level with DeepEval, diagnosing failures from data instead of guesses, per-user state in a multi-user app, keeping secrets out of code, and reducing a service's memory footprint without changing its behavior.
 
 ---
 
-# Future Improvements
-
-- Hybrid Search (BM25 + Vector Search)
-- Cross-Encoder Re-ranking
-- Redis Response Caching
-- User Authentication
-- CI/CD Pipeline
-- Cloud Deployment
-- Monitoring and Metrics
-
----
-
-# Learning Outcomes
-
-This project helped me gain practical experience with:
-
-- Retrieval-Augmented Generation (RAG)
-- Prompt Engineering
-- Vector Databases
-- Embedding Models
-- Semantic Search
-- FastAPI
-- PostgreSQL + PGVector
-- Docker
-- REST API Development
-- Modular Python Project Design
-- Git & GitHub Workflow
-
----
-
-# Author
-
-**Manvi Soni**
-
-GitHub: https://github.com/MANVIS10
+**Author:** Manvi Soni · [github.com/MANVIS10](https://github.com/MANVIS10)
