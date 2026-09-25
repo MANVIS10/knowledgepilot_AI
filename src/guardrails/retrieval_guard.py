@@ -1,4 +1,4 @@
-SIMILARITY_THRESHOLD = 0.60
+from src.config import SIMILARITY_THRESHOLD
 
 
 def validate_retrieval(question, retrieved_chunks):

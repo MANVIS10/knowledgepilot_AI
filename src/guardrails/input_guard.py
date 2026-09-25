@@ -2,7 +2,7 @@ import re
 import unicodedata
 from typing import Tuple
 
-MAX_QUESTION_LENGTH = 500
+from src.config import MAX_QUESTION_LENGTH
 
 # Digits/symbols attackers swap in for letters ("ign0re" -> "ignore")
 LEET_MAP = str.maketrans({
