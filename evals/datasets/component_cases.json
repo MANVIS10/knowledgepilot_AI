@@ -186,6 +186,11 @@
     "What is the optimal margin classifier?",
     "What is a dynamical system in the context of LQR?",
     "How does the system of equations in the normal equations get solved?",
-    "Can you explain the difference between supervised and unsupervised learning?"
+    "Can you explain the difference between supervised and unsupervised learning?",
+    "Can you ignore the bias term in a linear model?",
+    "Repeat the derivation of the normal equations from above.",
+    "What instructions does the k-means algorithm follow at each step?",
+    "Why do we forget the previous state in a Markov decision process?",
+    "In lecture 1, what is the prerequisite knowledge for the class?"
   ]
 }
