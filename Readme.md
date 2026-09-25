@@ -4,7 +4,9 @@ KnowledgePilot AI is a Retrieval-Augmented Generation (RAG) chatbot that answers
 
 I built it from scratch to understand the whole RAG pipeline, and then **measured it with DeepEval** — component-level and end-to-end — and fixed what the evals found. The results are below.
 
-> **Status:** the previous hosted demo is offline (free hosting expired). The app runs locally or in Docker (see [Running it](#running-it)).
+**Live demo:** https://knowledgepilot-ai.onrender.com · **GitHub:** https://github.com/MANVIS10/knowledgepilot_AI
+
+The free host puts the app to sleep when idle, so the first request after a pause can take a while. You can also run it locally or in Docker (see [Running it](#running-it)).
 
 ---
 
