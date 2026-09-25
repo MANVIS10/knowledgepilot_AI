@@ -9,3 +9,6 @@ SIMILARITY_THRESHOLD = 0.60
 USE_OUTPUT_GUARD = True
 
 MAX_QUESTION_LENGTH = 500
+
+# Rewrite follow-up questions ("why does it...") into standalone search queries
+REWRITE_FOLLOWUPS = True

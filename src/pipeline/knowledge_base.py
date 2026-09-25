@@ -1,4 +1,5 @@
 from src.retrieval.search import retrieve_chunks
+from src.retrieval.query_rewriter import rewrite_query
 from src.generation.generator import Generator
 from src.guardrails.input_guard import validate_question
 from src.guardrails.retrieval_guard import validate_retrieval
@@ -81,9 +82,15 @@ class KnowledgeBase:
                 "success": False
             }
 
+        # Earlier turns only (the new question is saved after we answer)
+        history = memory.get_messages()
+
+        # Search with a standalone version of follow-up questions
+        search_query = rewrite_query(question, history)
+
         # Retrieve chunks
         retrieved_chunks = retrieve_chunks(
-            question,
+            search_query,
             top_k
         )
         logger.info(
@@ -113,8 +120,6 @@ class KnowledgeBase:
             chunk["text"]
             for chunk in retrieved_chunks
         ]
-
-        history = memory.get_messages()
 
         # Generate answer using structured retrieved_chunks to build citations
         answer = self.generator.generate(
@@ -198,8 +203,11 @@ class KnowledgeBase:
             }
             return
 
+        history = memory.get_messages()
+        search_query = rewrite_query(question, history)
+
         retrieved_chunks = retrieve_chunks(
-            question,
+            search_query,
             top_k
         )
 
@@ -226,8 +234,6 @@ class KnowledgeBase:
             chunk["text"]
             for chunk in retrieved_chunks
         ]
-
-        history = memory.get_messages()
 
         sources = [
             {

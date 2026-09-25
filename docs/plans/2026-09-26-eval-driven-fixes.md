@@ -35,5 +35,26 @@ Evidence: follow-up MRR 0.38 / precision 0.35 vs 0.95 / 0.92 standalone.
 - Verify: follow-up component eval (remove xfail) meets MRR >= 0.70, precision >= 0.50;
   application follow-up tests.
 
-## Task 4 (next): Security evals with DeepTeam
+## Task 3 result
+Follow-up component eval (4 cases): MRR 0.38 -> 0.81, precision@5 0.35 -> 0.80.
+Application-level: 2 of 4 follow-ups still fail. Cause is NOT the rewrite (it resolves
+"it" correctly) but retrieval phrasing sensitivity: the one chunk that explains the
+learning rate (Lecture 2, chunk 18) is missed by "Why does gradient descent need a
+learning rate?" but found first by "What does the learning rate alpha control...".
+The component labels were also too loose (any "gradient descent" chunk counted as
+relevant), so 0.81 overstates the gain.
+
+## Task 4: Tighten follow-up relevance labels
+Use strict per-case patterns (the specific concept, not just the topic) and verify each
+matches the intended chunks. Re-measure baseline vs rewritten.
+
+## Task 5: Hybrid search (keyword + vector)
+Evidence: exact terms ("learning rate") are missed by pure embedding search.
+- Postgres full-text (tsvector + GIN) alongside pgvector; fuse rankings with
+  Reciprocal Rank Fusion. Keep each chunk's vector `distance` so the retrieval guard
+  still works (guard uses the BEST distance, not the first chunk's).
+- `HYBRID_SEARCH` flag in config; the eval measures vector-only vs hybrid on the same
+  cases and we keep hybrid only if the numbers justify it.
+
+## Task 6 (later): Security evals with DeepTeam
 Prompt leakage / injection / jailbreak attacks against the app.

@@ -95,8 +95,6 @@ def test_unanswerable_question_is_refused(kb, case):
 
 
 # ----------------------------------------------------------------- follow-ups
-@pytest.mark.xfail(reason="Known gap: follow-ups are retrieved without history "
-                          "(no query rewriting yet)", strict=False)
 @pytest.mark.parametrize("case", COMPONENT["followups"], ids=lambda c: c["question"])
 def test_followup_uses_conversation_history(kb, case):
     session = str(uuid.uuid4())
