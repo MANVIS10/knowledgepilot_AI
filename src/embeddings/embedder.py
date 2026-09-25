@@ -2,10 +2,10 @@ import json
 from pathlib import Path
 
 import numpy as np
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 
 
-model = SentenceTransformer(
+model = TextEmbedding(
     "BAAI/bge-small-en-v1.5"
 )
 
@@ -46,7 +46,7 @@ def process_file(
 
     texts = load_chunks(input_file)
 
-    embeddings = model.encode(texts)
+    embeddings = np.array(list(model.embed(texts)))
 
     save_embeddings(
         embeddings,

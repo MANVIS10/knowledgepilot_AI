@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 import numpy as np
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 
 
 def load_embeddings(input_file: Path) -> np.ndarray:
@@ -26,10 +26,10 @@ def load_chunks(input_file: Path) -> list[str]:
 
 def embed_query(
     query: str,
-    model: SentenceTransformer
+    model: TextEmbedding
 ) -> np.ndarray:
 
-    query_embedding = model.encode(query)
+    query_embedding = np.array(next(iter(model.embed([query]))))
 
     return query_embedding
 
@@ -108,7 +108,7 @@ def main():
         chunks_file
     )
 
-    model = SentenceTransformer(
+    model = TextEmbedding(
         "BAAI/bge-small-en-v1.5"
     )
 

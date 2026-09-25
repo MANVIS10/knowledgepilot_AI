@@ -1,6 +1,6 @@
 from pathlib import Path
 from src.generation.generator import Generator
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 
 from src.retrieval.retriever import (
     load_embeddings,
@@ -28,7 +28,7 @@ def main():
         chunks_file
     )
 
-    model = SentenceTransformer(
+    model = TextEmbedding(
         "BAAI/bge-small-en-v1.5"
     )
 

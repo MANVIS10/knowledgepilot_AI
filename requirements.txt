@@ -1,9 +1,6 @@
---extra-index-url https://download.pytorch.org/whl/cpu
-
 beautifulsoup4
 fastapi
 gradio
-huggingface-hub
 numpy
 openai
 pgvector
@@ -12,7 +9,5 @@ pydantic
 python-dotenv
 python-multipart
 scikit-learn
-sentence-transformers
-torch
-transformers
+fastembed
 uvicorn

@@ -1,13 +1,11 @@
-import torch
-from sentence_transformers import SentenceTransformer
+import numpy as np
+from fastembed import TextEmbedding
 
 from src.utils.db import get_connection
 
-# Limit PyTorch CPU threads for memory and performance efficiency in container
-torch.set_num_threads(1)
-
-# Load embedding model once
-model = SentenceTransformer("BAAI/bge-small-en-v1.5")
+# Load embedding model once (same model as before, run with ONNX instead of PyTorch).
+# One CPU thread keeps memory and CPU use low in a small container.
+model = TextEmbedding("BAAI/bge-small-en-v1.5", threads=1)
 
 
 def retrieve_chunks(
@@ -20,8 +18,7 @@ def retrieve_chunks(
     """
 
     # Create embedding for the user's question
-    with torch.no_grad():
-        question_embedding = model.encode(question)
+    question_embedding = np.array(next(iter(model.embed([question]))))
 
 
     conn = get_connection()
