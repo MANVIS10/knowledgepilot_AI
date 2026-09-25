@@ -4,8 +4,14 @@ from src.guardrails.input_guard import validate_question
 from src.guardrails.retrieval_guard import validate_retrieval
 from src.guardrails.output_guard import validate_output
 from src.memory.conversation_memory import ConversationMemory
-from src.config import USE_OUTPUT_GUARD
+from src.config import USE_OUTPUT_GUARD, MAX_HISTORY
 from src.logging.logger import logger
+
+from collections import OrderedDict
+from threading import Lock
+
+# Upper bound on remembered sessions so memory use can't grow forever
+MAX_SESSIONS = 1000
 
 
 class KnowledgeBase:
@@ -13,7 +19,43 @@ class KnowledgeBase:
     def __init__(self):
 
         self.generator = Generator()
-        self.memory = ConversationMemory()
+        self._memories = OrderedDict()
+        self._lock = Lock()
+
+    ############################################################
+    # PER-SESSION MEMORY
+    ############################################################
+
+    def get_memory(self, session_id: str | None) -> ConversationMemory:
+        """
+        Return the conversation memory that belongs to one session.
+        A missing session_id gets a throwaway memory (stateless request).
+        """
+
+        if session_id is None:
+            return ConversationMemory(MAX_HISTORY)
+
+        with self._lock:
+            memory = self._memories.get(session_id)
+
+            if memory is None:
+                memory = ConversationMemory(MAX_HISTORY)
+                self._memories[session_id] = memory
+                if len(self._memories) > MAX_SESSIONS:
+                    self._memories.popitem(last=False)
+            else:
+                self._memories.move_to_end(session_id)
+
+            return memory
+
+    def clear_memory(self, session_id: str | None):
+
+        if session_id is None:
+            return
+
+        with self._lock:
+            self._memories.pop(session_id, None)
+
     ############################################################
     # NORMAL METHOD (FastAPI / Swagger)
     ############################################################
@@ -21,10 +63,11 @@ class KnowledgeBase:
     def ask(
         self,
         question: str,
-        top_k: int = 5
+        top_k: int = 5,
+        session_id: str | None = None
     ) -> dict:
 
-        self.memory.add_user_message(question)
+        memory = self.get_memory(session_id)
         logger.info(f"Question: {question}")
 
         allowed, message = validate_question(question)
@@ -71,7 +114,7 @@ class KnowledgeBase:
             for chunk in retrieved_chunks
         ]
 
-        history = self.memory.get_messages()
+        history = memory.get_messages()
 
         # Generate answer using structured retrieved_chunks to build citations
         answer = self.generator.generate(
@@ -94,7 +137,10 @@ class KnowledgeBase:
                 answer = validated_answer
                 allowed = False
 
-        self.memory.add_assistant_message(answer)
+        # Save the turn only once we have an answer, so blocked or
+        # irrelevant questions never leave a dangling user message
+        memory.add_user_message(question)
+        memory.add_assistant_message(answer)
 
         sources = [
             {
@@ -134,10 +180,11 @@ class KnowledgeBase:
     def stream_answer(
         self,
         question: str,
-        top_k: int = 5
+        top_k: int = 5,
+        session_id: str | None = None
     ):
 
-        self.memory.add_user_message(question)
+        memory = self.get_memory(session_id)
 
         allowed, message = validate_question(question)
 
@@ -180,7 +227,7 @@ class KnowledgeBase:
             for chunk in retrieved_chunks
         ]
 
-        history = self.memory.get_messages()
+        history = memory.get_messages()
 
         sources = [
             {
@@ -225,14 +272,17 @@ class KnowledgeBase:
                 chunk_texts
             )
             if not allowed_out:
-                final_answer = validated_answer
+                # The user has already read the streamed answer, so don't
+                # make it vanish: keep it and add a visible warning below.
+                # Memory keeps the original text, not the warning.
                 yield {
-                    "answer": final_answer,
+                    "answer": f"{final_answer}\n\n---\n⚠️ {validated_answer}",
                     "sources": sources,
                     "retrieved_chunks": retrieved_chunks,
                     "passed_chunks": retrieved_chunks,
                     "success": False
                 }
 
-        self.memory.add_assistant_message(final_answer)
-
+        memory.add_user_message(question)
+        memory.add_assistant_message(final_answer)
+

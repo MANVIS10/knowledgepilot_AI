@@ -6,7 +6,7 @@ from src.pipeline.knowledge_base import KnowledgeBase
 # Don't create the KnowledgeBase during startup
 kb = None
 
-def chat(message, history, debug_mode):
+def chat(message, history, debug_mode, request: gr.Request):
     """
     Streams the assistant response and updates sources & debug panels.
     """
@@ -29,7 +29,7 @@ def chat(message, history, debug_mode):
         sources_md = "No sources cited for this response."
         debug_md = "Debug Mode is disabled. Enable 'Retrieval-Debug Mode' below the chat and ask a question to see details."
 
-        stream = kb.stream_answer(message)
+        stream = kb.stream_answer(message, session_id=request.session_hash)
         
         # Get the first yielded item which contains the retrieval metadata
         first_update = next(stream)
@@ -103,13 +103,13 @@ def chat(message, history, debug_mode):
         yield history, "Error loading sources.", f"Error detail: {str(e)}"
 
 
-def clear_chat():
+def clear_chat(request: gr.Request):
     """
     Clears the chatbot history and resets conversation memory.
     """
     global kb
     if kb is not None:
-        kb.memory.clear()
+        kb.clear_memory(request.session_hash)
     return [], "No sources cited yet.", "Debug Mode is disabled. Enable 'Retrieval-Debug Mode' below the chat and ask a question to see details."
 
 

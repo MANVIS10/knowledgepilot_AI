@@ -39,6 +39,12 @@ def process_lecture(
 
     conn.commit()
 
+    # Replace this lecture's rows so re-running never creates duplicates
+    cur.execute(
+        "DELETE FROM documents WHERE lecture_name = %s",
+        (lecture_name,),
+    )
+
     # Insert embeddings
     for chunk, embedding in zip(chunks, embeddings):
 

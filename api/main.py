@@ -10,6 +10,7 @@ kb = KnowledgeBase()
 
 class QuestionRequest(BaseModel):
     question: str
+    session_id: str | None = None  # same id = same conversation; omit for a stateless call
 
 
 @app.get("/")
@@ -22,7 +23,7 @@ def home():
 @app.post("/ask")
 def ask(request: QuestionRequest):
 
-    result = kb.ask(request.question)
+    result = kb.ask(request.question, session_id=request.session_id)
 
     print(type(result))
     print(result)

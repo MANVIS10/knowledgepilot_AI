@@ -5,14 +5,30 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Connection details must come from the environment (.env locally, the
+# host's settings in production). Never hard-code them here.
+REQUIRED_VARS = ["DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_PASSWORD"]
+
+
 def get_connection():
+    missing = [name for name in REQUIRED_VARS if not os.getenv(name)]
+
+    if missing:
+        raise RuntimeError(
+            "Missing database settings: "
+            + ", ".join(missing)
+            + ". Set them in your .env file (see .env.example)."
+        )
+
     conn = psycopg2.connect(
-        host=os.getenv("DB_HOST", "altaria.proxy.rlwy.net"),
-        port=int(os.getenv("DB_PORT", "37785")),
-        database=os.getenv("DB_NAME", "railway"),
-        user=os.getenv("DB_USER", "postgres"),
-        password=os.getenv("DB_PASSWORD", "YViFfTrfMoTWnxgLduCBcHbwcJYRknDM"),
-        sslmode=os.getenv("DB_SSLMODE", "require"),
+        host=os.environ["DB_HOST"],
+        port=int(os.environ["DB_PORT"]),
+        database=os.environ["DB_NAME"],
+        user=os.environ["DB_USER"],
+        password=os.environ["DB_PASSWORD"],
+        # "prefer" works for a local Docker database (no SSL) and still uses
+        # SSL when the server offers it. Set DB_SSLMODE=require for hosted DBs.
+        sslmode=os.getenv("DB_SSLMODE", "prefer"),
     )
 
     try:
@@ -24,4 +40,3 @@ def get_connection():
 
     register_vector(conn)
     return conn
-
