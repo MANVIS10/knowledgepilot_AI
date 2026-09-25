@@ -9,7 +9,8 @@ def validate_retrieval(question, retrieved_chunks):
             "I couldn't find relevant information."
         )
 
-    best_distance = retrieved_chunks[0]["distance"]
+    # Hybrid results are ordered by fused rank, not distance, so take the closest
+    best_distance = min(chunk["distance"] for chunk in retrieved_chunks)
     best_similarity = 1 - best_distance
 
     if best_similarity < SIMILARITY_THRESHOLD:

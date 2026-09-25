@@ -56,5 +56,17 @@ Evidence: exact terms ("learning rate") are missed by pure embedding search.
 - `HYBRID_SEARCH` flag in config; the eval measures vector-only vs hybrid on the same
   cases and we keep hybrid only if the numbers justify it.
 
+## Task 4 result
+Strict labels: follow-up retrieval MRR 0.25 -> 0.56, precision@5 0.25 -> 0.45 with
+rewriting (the earlier 0.38 -> 0.81 was inflated by loose labels).
+
+## Task 5 result: hybrid search built, NOT adopted (HYBRID_SEARCH=False)
+A/B on the same cases (vector-only vs hybrid):
+- naive OR keyword query: answerable hit 0.95->1.00, precision 0.92->0.85, follow-up MRR 0.56->0.31
+- rare-word keyword query: answerable hit 0.95->1.00, precision 0.92->0.89, follow-up MRR 0.56->0.38
+Hybrid fixes one standalone question but is worse on the follow-ups it was meant to fix,
+so it stays behind the flag. Retrieval guard now uses the best distance, not the first chunk.
+Untried ideas: cross-encoder re-ranking, retrieving more chunks for the LLM, smaller chunks.
+
 ## Task 6 (later): Security evals with DeepTeam
 Prompt leakage / injection / jailbreak attacks against the app.

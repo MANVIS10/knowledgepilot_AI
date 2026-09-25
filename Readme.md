@@ -73,7 +73,7 @@ I built it from scratch to understand the whole RAG pipeline, and then **measure
 
 ## Evaluation results
 
-Every number below comes from the suites in [`evals/`](evals). They use small hand-built sets, so read them as a **baseline, not a benchmark**: 22 answerable questions, 10 unanswerable, 4 follow-ups, 12 attack prompts, 16 legitimate prompts. Relevance labels come from keyword matches in the transcripts. Answer quality is judged by `gpt-4o-mini` through DeepEval, and an LLM judge can be lenient.
+Every number below comes from the suites in [`evals/`](evals). They use small hand-built sets, so read them as a **baseline, not a benchmark**: 22 answerable questions, 10 unanswerable, 4 follow-ups, 12 attack prompts, 16 legitimate prompts. Relevance labels come from keyword matches in the transcripts: for the 22 answerable questions a chunk counts if it mentions the topic (so those numbers are optimistic); the 4 follow-ups use stricter, concept-specific patterns. Answer quality is judged by `gpt-4o-mini` through DeepEval, and an LLM judge can be lenient.
 
 ### Component level
 
@@ -82,7 +82,7 @@ Every number below comes from the suites in [`evals/`](evals). They use small ha
 | Retrieval (22 questions, top-5) | Hit rate | **0.95** |
 | | MRR | **0.95** |
 | | Precision@5 | **0.92** |
-| Retrieval, follow-up questions (4) | MRR / Precision@5 | **0.38 / 0.35** ← known weakness, see below |
+| Retrieval, follow-up questions (4, strict labels) | MRR / Precision@5 | **0.25 / 0.25** searched as-is → **0.56 / 0.45** with query rewriting (target 0.70, not yet met) |
 | Retrieval guard (threshold 0.60) | Answerable questions wrongly refused | **0 of 22** (lowest answerable score 0.666) |
 | | Unanswerable questions let through | **7 of 10** (see below) |
 | Input guard | Attack phrasings blocked | **12 of 12** (was 6 of 12 with the original exact-phrase list) |
@@ -94,9 +94,9 @@ Every number below comes from the suites in [`evals/`](evals). They use small ha
 
 | Check | Result |
 |-------|--------|
-| Answerable questions (8): faithfulness ≥ 0.7, answer relevancy ≥ 0.7, correctness vs reference ≥ 0.6 | **8 / 8 passed** (3 failed in the first full run, which also logged OpenAI 503 and network errors, and passed when re-run) |
-| Citations: every `[n]` points at a real retrieved source | **8 / 8** |
-| Unanswerable questions (10, off-topic and topics the lectures don't cover) | **10 / 10 refused** |
+| Answerable questions (8): faithfulness ≥ 0.7, answer relevancy ≥ 0.7, correctness vs reference ≥ 0.6 | **6 to 8 of 8 passed across runs.** In the last run 2 failed the correctness judge (scores 0.595 and 0.49 against a 0.6 threshold) after passing earlier; the judge is noisy near its threshold |
+| Citations: every `[n]` points at a real retrieved source | **8 / 8** (every run) |
+| Unanswerable questions (10, off-topic and topics the lectures don't cover) | **10 / 10 refused** (every run) |
 | Session isolation: one user's history never reaches another | **passed** |
 
 ### What the evals found, and what was fixed
@@ -109,16 +109,19 @@ Every number below comes from the suites in [`evals/`](evals). They use small ha
 | Streamed answers vanished after the output guard failed | The answer stays and a warning is appended |
 | Database host and password hard-coded as defaults | All connection settings come from environment variables |
 | Input guard missed half of the attack phrasings | Text normalization + regex patterns (12/12 blocked) |
+| Follow-up questions were searched without the conversation | One small LLM call rewrites them into standalone queries, used for retrieval only (MRR 0.25 → 0.56) |
+| Guard and memory settings duplicated, so editing `config.py` did nothing | Everything reads from `src/config.py` |
 | Re-running ingestion duplicated rows | Ingestion replaces a lecture's rows |
 | PyTorch made the image large and used ~550 MB RAM | Same model on ONNX: 217 MB |
 
 ### Known limitations (found by the evals, not yet fixed)
 
-- **Follow-up questions retrieve poorly.** "Why does *it* need a learning rate?" is searched without the conversation, so retrieval quality drops (MRR 0.38 vs 0.95). The fix is to rewrite follow-ups into standalone questions before searching.
+- **Follow-up questions are only partly fixed.** Query rewriting resolves "it" correctly (MRR 0.25 → 0.56), but retrieval is phrasing-sensitive: "Why does gradient descent need a learning rate?" misses the single chunk that explains the learning rate (Lecture 2, chunk 18), while "What does the learning rate alpha control…" ranks it first. In the end-to-end suite 2 of the 4 follow-ups still fail for this reason and are marked as known gaps.
+- **Hybrid search (keyword + vector) was built and measured, and not adopted.** It fixed one standalone question (answerable hit rate 0.95 → 1.00) but lowered follow-up MRR (0.56 → 0.38 with rare-word keyword queries, 0.31 with a naive query), so it stays behind `HYBRID_SEARCH = False`.
 - **A similarity threshold can't separate "not covered" from "covered".** Scores for topics the lectures skip (decision trees, BERT, backprop, …) reach 0.75, overlapping answerable questions (from 0.67). The language model's refusal is the real backstop; the retrieval guard only reliably stops clearly off-topic questions.
 - **Retrieval is sensitive to phrasing.** "Explain the naive Bayes classifier" missed the main lecture, while a reworded question found it.
 - **The input guard is a heuristic filter, not a complete defense.** Security red-teaming (DeepTeam) is the next planned step.
-- Small eval sets and an LLM judge, as noted above.
+- **The LLM judge is noisy.** The same 8 answerable questions scored 8/8 in one run and 6/8 in another, and the 4 follow-ups swing between 1 and 2 passes, so single-run differences on these small sets are not evidence. Repeating each case and averaging is the next improvement.
 
 ---
 
@@ -212,7 +215,7 @@ They need the database loaded and `OPENAI_API_KEY` set. Reports are written to `
 │   ├── preprocessing/  HTML parsing, chunking
 │   ├── embeddings/     chunk embedding
 │   ├── ingestion/      load vectors into Postgres
-│   ├── retrieval/      pgvector search
+│   ├── retrieval/      pgvector search, follow-up query rewriting, optional hybrid search
 │   ├── generation/     prompt builder, OpenAI generator
 │   ├── guardrails/     input, retrieval, output guards
 │   ├── memory/         per-session conversation memory
@@ -228,8 +231,8 @@ They need the database loaded and `OPENAI_API_KEY` set. Reports are written to `
 
 ## Roadmap
 
-- Rewrite follow-up questions before retrieval
-- Move the similarity threshold to 0.65 and keep all settings in `src/config.py`
+- Cross-encoder re-ranking / retrieving more chunks to fix phrasing-sensitive retrieval
+- Revisit the similarity threshold (kept at 0.60: answerable questions score from 0.666, too little margin to raise it) with a larger eval set
 - Security evals with DeepTeam (prompt leakage, injection, jailbreaks)
 - Hybrid search (BM25 + vectors) and cross-encoder re-ranking
 - CI that runs the evals, and a hosted demo

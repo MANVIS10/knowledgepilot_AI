@@ -3,6 +3,7 @@ from pathlib import Path
 
 import numpy as np
 
+from src.ingestion.add_fulltext_search import ensure_fulltext_search
 from src.utils.db import get_connection
 
 
@@ -36,6 +37,9 @@ def process_lecture(
             embedding VECTOR(384)
         );
     """)
+
+    # Keyword-search column + index used by hybrid retrieval
+    ensure_fulltext_search(cur)
 
     conn.commit()
 
