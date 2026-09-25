@@ -95,28 +95,28 @@
         "What is gradient descent?"
       ],
       "question": "Why does it need a learning rate?",
-      "relevant_regex": "learning rate|step size|gradient descent"
+      "relevant_regex": "learning rate"
     },
     {
       "history": [
         "What is naive Bayes?"
       ],
       "question": "What assumption does it make about the features?",
-      "relevant_regex": "naive bayes"
+      "relevant_regex": "conditionally independent|conditional independence|independence assumption"
     },
     {
       "history": [
         "Explain value iteration."
       ],
       "question": "How is it different from policy iteration?",
-      "relevant_regex": "policy iteration|value iteration"
+      "relevant_regex": "policy iteration"
     },
     {
       "history": [
         "What is k-means?"
       ],
       "question": "How is it initialized?",
-      "relevant_regex": "k-means|k means"
+      "relevant_regex": "initiali[sz]e.{0,120}(cluster|centroid)|(cluster|centroid).{0,120}initiali[sz]|randomly.{0,80}(cluster|centroid)|(cluster|centroid).{0,80}randomly"
     }
   ],
   "unanswerable": [
