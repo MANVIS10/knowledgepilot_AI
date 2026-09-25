@@ -16,3 +16,7 @@ __pycache__/
 
 # Large videos
 data/raw/videos/
+
+# Eval run output
+evals/reports/
+

@@ -1,0 +1,36 @@
+{
+  "answerable": [
+    {
+      "question": "What is gradient descent?",
+      "expected_output": "Gradient descent is an iterative optimization algorithm that repeatedly updates the parameters theta by taking a step in the direction of the negative gradient of the cost function J(theta), scaled by a learning rate alpha, in order to minimize the cost."
+    },
+    {
+      "question": "Explain locally weighted regression.",
+      "expected_output": "Locally weighted regression fits a linear model separately for each query point, weighting training examples by how close they are to the query point (using a bandwidth parameter tau), so nearby points matter more."
+    },
+    {
+      "question": "How does logistic regression work?",
+      "expected_output": "Logistic regression is a classification algorithm that models the probability that y=1 using the sigmoid (logistic) function of theta transpose x, and fits theta by maximum likelihood."
+    },
+    {
+      "question": "Explain the naive Bayes classifier.",
+      "expected_output": "Naive Bayes is a generative classifier that assumes the features are conditionally independent given the class label; the lecture uses it for spam classification."
+    },
+    {
+      "question": "What is Laplace smoothing?",
+      "expected_output": "Laplace smoothing adds one to the counts (and adjusts the denominator) so that words never seen in training do not get zero probability."
+    },
+    {
+      "question": "What is VC dimension?",
+      "expected_output": "The VC dimension of a hypothesis class is the size of the largest set of points that the class can shatter."
+    },
+    {
+      "question": "How does the k-means algorithm work?",
+      "expected_output": "K-means clusters data by repeatedly assigning each point to its closest cluster centroid and then recomputing each centroid as the mean of its assigned points, until convergence."
+    },
+    {
+      "question": "Explain value iteration.",
+      "expected_output": "Value iteration finds the optimal value function of an MDP by repeatedly applying the Bellman update V(s) = R(s) + max over actions of gamma times the expected value of the next state, until it converges."
+    }
+  ]
+}

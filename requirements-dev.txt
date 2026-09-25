@@ -1,0 +1,7 @@
+-r requirements.txt
+
+# Evaluation tooling (not needed at runtime, kept out of the Docker image)
+deepeval==4.2.6
+deepteam==1.0.9
+sentry-sdk  # imported by deepteam but not declared as its dependency
+click==8.3.3  # deepeval needs <8.4; pip check will warn about huggingface-hub CLI (unused)
